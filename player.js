@@ -1,4 +1,4 @@
-// player.js — 플레이어 행동 및 충돌 로직
+// player.js — 플레이어 이동 및 충돌 판정 구조
 
 class Player {
   constructor(id, startR, startC, keyUp, keyDown, keyLeft, keyRight, initDr, initDc) {
@@ -6,14 +6,13 @@ class Player {
     this.r = startR;
     this.c = startC;
     
-    // 게임 시작 시 정지해 있지 않고 자동으로 움직이도록 설정
+    // 시작하자마자 멈춰있지 않고 무조건 자동으로 움직이도록 설정
     this.dr = initDr;
     this.dc = initDc;
     this.nextDr = initDr;
     this.nextDc = initDc;
 
     this.keys = { up: keyUp, down: keyDown, left: keyLeft, right: keyRight };
-
     this.alive = true;
     this.tail = [];
     this.owner = OWNER_TEAM;
@@ -24,8 +23,12 @@ class Player {
   }
 
   get speed() {
-    // 에너지드링크 마시면 속도 2배 효과
     return this.boostTimer > 0 ? PLAYER_SPEED * BOOST_MULTIPLIER : PLAYER_SPEED;
+  }
+
+  get displayColor() {
+    if (this.owner === OWNER_TEAM) return COLOR_TEAM;
+    return this.id === 'A' ? COLOR_A : COLOR_B;
   }
 
   setPhase(phase) {
@@ -34,7 +37,7 @@ class Player {
   }
 
   handleKeyPressed(kc) {
-    // 반대 방향 전환 방지
+    // 180도 즉시 반대 방향 전환 버그 방지
     if (kc === this.keys.up    && this.dr !== 1)  { this.nextDr = -1; this.nextDc = 0; }
     if (kc === this.keys.down  && this.dr !== -1) { this.nextDr = 1;  this.nextDc = 0; }
     if (kc === this.keys.left  && this.dc !== 1)  { this.nextDr = 0;  this.nextDc = -1; }
@@ -47,7 +50,6 @@ class Player {
     if (this.boostTimer > 0) this.boostTimer--;
     if (this.steelTailTimer > 0) this.steelTailTimer--;
 
-    // 프레임 레이트 독립 이동 누적 계산
     this.moveAccum += this.speed / FRAME_RATE;
     while (this.moveAccum >= 1) {
       this.moveAccum -= 1;
@@ -62,9 +64,8 @@ class Player {
     const nr = this.r + this.dr;
     const nc = this.c + this.dc;
 
-    // 맵 밖으로 이탈 불가 처리 (나가지 못하고 벽에 부딪쳐 멈추거나 미끄러짐)
+    // 규칙 변경: 맵 밖으로 나갈 수 없음 (장외 사망 방지 및 강제 차단)
     if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) {
-      // 진행 방향 통제하여 장외 방지
       return; 
     }
 
@@ -73,17 +74,15 @@ class Player {
 
     const currentTileOwner = getOwner(this.r, this.c);
 
-    // 본인 영역(팀 혹은 개인)에 진입한 경우
+    // 자신의 땅 위에 도달했을 때
     if (currentTileOwner === this.owner) {
       if (this.tail.length > 0) {
-        // 꼬리를 소유지에 이어 안전하게 영역 획득
         this.tail.push({ r: this.r, c: this.c });
         fillClosedArea(this.owner, this.tail);
         this.tail = [];
       }
     } else {
-      // 땅 밖에 있을 때만 자취(꼬리)를 남김
-      // 이미 내 꼬리가 있는 칸을 다시 밟으면 강철 꼬리가 아닐 때 사망
+      // 내 꼬리를 밟았을 때 처리 (강철꼬리가 아닐 때만 사망)
       if (this.tail.some(t => t.r === this.r && t.c === this.c)) {
         if (this.steelTailTimer <= 0) {
           this.alive = false;
@@ -94,18 +93,14 @@ class Player {
     }
   }
 
-  // 내 영역 위에 온전히 서 있는지 확인
+  // 자신의 땅에 안전하게 밟고 서 있는지 체크
   isInOwnTerritory() {
     return getOwner(this.r, this.c) === this.owner;
   }
 
-  // 꼬리가 끊겼을 때의 처리
   cutTailAt(index) {
-    if (this.steelTailTimer > 0) return; // 강철 꼬리 상태면 무적
-    
-    // 자신의 땅 위에 있는 상태일 경우 꼬리 절단으로 인한 사망 절대 면제
-    if (this.isInOwnTerritory()) return;
-
+    if (this.steelTailTimer > 0) return; // 강철 꼬리 상태는 무적
+    if (this.isInOwnTerritory()) return; // 규칙: 자신의 땅 위에 있을 때는 죽지 않음
     this.alive = false;
   }
 
@@ -119,33 +114,33 @@ class Player {
     this.owner = owner;
     this.boostTimer = 0;
     this.steelTailTimer = 0;
+    this.moveAccum = 0;
   }
 
   draw(p) {
     if (!this.alive) return;
 
-    // 꼬리(줄) 그리기
-    const tailCol = this.steelTailTimer > 0 ? '#B0BEC5' : (this.id === 'A' ? '#64B5F6' : '#BA68C8');
+    // 꼬리 그리기 (줄)
+    const tailCol = this.steelTailTimer > 0 ? '#B0BEC5' : this.displayColor;
     p.noStroke();
     for (const t of this.tail) {
       p.fill(tailCol);
       p.rect(t.c * TILE_SIZE + 3, t.r * TILE_SIZE + 3, TILE_SIZE - 6, TILE_SIZE - 6, 2);
     }
 
-    // 플레이어 본체 머리
+    // 플레이어 머리
     const x = this.c * TILE_SIZE;
     const y = this.r * TILE_SIZE;
     
-    // 이펙트 링
     if (this.boostTimer > 0) {
-      p.fill(0, 255, 255, 70);
+      p.fill(0, 255, 255, 80);
       p.rect(x - 2, y - 2, TILE_SIZE + 4, TILE_SIZE + 4, 4);
     }
 
     p.fill(this.id === 'A' ? COLOR_A : COLOR_B);
     p.rect(x + 1, y + 1, TILE_SIZE - 2, TILE_SIZE - 2, 4);
 
-    // 눈 표시
+    // 눈금선 그리기
     p.fill(255);
     p.rect(x + 4, y + 4, 3, 3);
     p.rect(x + TILE_SIZE - 7, y + 4, 3, 3);
@@ -155,9 +150,9 @@ class Player {
 let playerA, playerB;
 
 function initPlayers() {
-  // A키 조작(WASD), B키 조작(방향키) 정상 주입 및 자동 시작 이동 세팅
-  playerA = new Player('A', 10, 10, 87, 83, 65, 68, 0, 1);       // W, S, A, D / 우측 시작
-  playerB = new Player('B', ROWS - 11, COLS - 11, 38, 40, 37, 39, 0, -1); // 방향키 / 좌측 시작
+  // 처음 작동 시 자동으로 한 방향으로 전진하게 강제 초기 이동 설정 적용
+  playerA = new Player('A', 10, 10, 87, 83, 65, 68, 0, 1);       // WASD 조작
+  playerB = new Player('B', ROWS - 11, COLS - 11, 38, 40, 37, 39, 0, -1); // 방향키 조작
 }
 
 function updatePlayers(phase, p) {
@@ -166,7 +161,7 @@ function updatePlayers(phase, p) {
 
   if (!playerA.alive || !playerB.alive) return;
 
-  // 1. 머리끼리 부딪혔을 때 처리 (죽지 않고 튕겨 나감)
+  // 규칙: 머리끼리 부딪혔을 때는 안 죽고 서로 반사되어 튕겨나감
   if (playerA.r === playerB.r && playerA.c === playerB.c) {
     playerA.r -= playerA.dr; playerA.c -= playerA.dc;
     playerB.r -= playerB.dr; playerB.c -= playerB.dc;
@@ -174,16 +169,13 @@ function updatePlayers(phase, p) {
     playerB.nextDr = -playerB.dr; playerB.nextDc = -playerB.dc;
   }
 
-  // 2. 교차 꼬리 끊기 검사 (먼저 끊은 사람이 승리)
+  // 꼬리 교차 끊기 판정 (상대 줄을 끊으면 즉시 처단)
   let cutA = -1, cutB = -1;
-  
-  // A가 B의 꼬리를 끊었는지 확인
   for (let i = 0; i < playerB.tail.length; i++) {
     if (playerA.r === playerB.tail[i].r && playerA.c === playerB.tail[i].c) {
       cutB = i; break;
     }
   }
-  // B가 A의 꼬리를 끊었는지 확인
   for (let i = 0; i < playerA.tail.length; i++) {
     if (playerB.r === playerA.tail[i].r && playerB.c === playerA.tail[i].c) {
       cutA = i; break;

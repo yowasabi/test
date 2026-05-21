@@ -1,6 +1,6 @@
-// constants.js — 게임 상수 설정
+// constants.js — 게임 상수 및 설정
 
-// 1. 맵 및 화면 크기 설정 (맵 크기를 더 크게 확장)
+// 1. 맵 크기 확장 (기존 50x50 -> 60x60)
 const TILE_SIZE = 16;
 const COLS = 60; 
 const ROWS = 60;
@@ -9,35 +9,35 @@ const CANVAS_H = ROWS * TILE_SIZE;
 
 const FRAME_RATE = 30;
 
-// 2. 게임 시간 규칙
-const GAME_TOTAL_TIME = 60;        // 전체 게임 시간 1분
-const BETRAYAL_TRIGGER_TIME = 20;  // 배신 타이머 발동 잔여 시간 20초
+// 2. 게임 시간 규칙 (전체 1분, 배신타이머 20초)
+const GAME_TOTAL_TIME = 60;        
+const BETRAYAL_TRIGGER_TIME = 20;  
 
-const SOLO_TIME_LIMIT = 30;         // 한 명 사망 후 제한 시간 30초
-const EMERGENCY_BETRAYAL_TIME = 30; // 부활 후 배신 타이머 30초
+const SOLO_TIME_LIMIT = 30;         // 독자생존 제한시간 30초
+const EMERGENCY_BETRAYAL_TIME = 30; // 부활 후 배신타이머 30초
 
-// 3. 플레이어 설정
-const PLAYER_SPEED = 8;             // 플레이어 기본 속도 (초당 타일 이동 수)
-const BOOST_MULTIPLIER = 2.0;       // 에너지드링크 속도 2배
-const ITEM_DURATION = 150;          // 5초 (5 * 30fps)
+// 3. 플레이어 속도 설정 (좀비보다 살짝 빠르게)
+const PLAYER_SPEED = 8;             
+const BOOST_MULTIPLIER = 2.0;       // 에너지드링크 2배 속도
+const ITEM_DURATION = 150;          // 5초 (5초 * 30fps)
 
-// 4. 좀비 설정 (플레이어보다 살짝 느리게 조정)
-const ZOMBIE_COUNT = 6;             // 시작 좀비 수
-const ZOMBIE_MAX = 12;              // 최대 좀비 제한
+// 4. 좀비 설정 (플레이어보다 살짝 느린 속도 및 지속 스폰)
+const ZOMBIE_COUNT = 6;             // 초기 스폰 수
+const ZOMBIE_MAX = 15;              // 최대 좀비 수 제한
 const ZOMBIE_SPEED_NORMAL = 6.0;    // 플레이어(8)보다 살짝 느림
 const ZOMBIE_SPEED_BOOSTED = 11.0;  // 피 획득 시 폭주 속도
 const ZOMBIE_SPAWN_INTERVAL = 150;  // 5초마다 추가 생성
-const ZOMBIE_RANDOM_CHANCE = 0.15;  // 무작위 이동 확률
+const ZOMBIE_RANDOM_CHANCE = 0.15;  
 
-// 5. 아이템 박스 설정
-const BOX_COUNT_EACH = 4;           // 종류별 생성 개수
-const BONUS_LAND_RADIUS = 3;        // 약 획득 시 보너스 땅 반지름
+// 5. 랜덤박스 설정 (종류별 4개씩 배치)
+const BOX_COUNT_EACH = 4;           
+const BONUS_LAND_RADIUS = 3;        
 
-// 6. 상태 및 진역 소유권 정의
+// 6. 상태 및 진영 고유 소유권 키값
 const PHASE_LOBBY = 'LOBBY';
-const PHASE_COOP = 'COOP';          // 협력 단계
-const PHASE_SOLO = 'SOLO';          // 한 명 죽었을 때 독자 생존 단계
-const PHASE_BETRAYAL = 'BETRAYAL';  // 배신 단계
+const PHASE_COOP = 'COOP';          
+const PHASE_SOLO = 'SOLO';          
+const PHASE_BETRAYAL = 'BETRAYAL';  
 const PHASE_END = 'END';
 
 const OWNER_NONE = null;
@@ -46,11 +46,11 @@ const OWNER_A = 'A';
 const OWNER_B = 'B';
 const OWNER_ZOMBIE = 'Z';
 
-const BOX_TYPE_MEDICINE = 'medicine'; // 약
-const BOX_TYPE_BLOOD    = 'blood';    // 피
-const BOX_TYPE_ENERGY   = 'energy';   // 에너지드링크
+const BOX_TYPE_MEDICINE = 'medicine'; 
+const BOX_TYPE_BLOOD    = 'blood';    
+const BOX_TYPE_ENERGY   = 'energy';   
 
-// 색상 정의
+// 테마 색상 설정
 const COLOR_EMPTY = '#1A1A24';
 const COLOR_GRID = '#2D2D3D';
 const COLOR_TEAM = '#4CAF50';

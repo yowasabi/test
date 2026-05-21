@@ -40,6 +40,9 @@ const OWNER_A = 'A';
 const OWNER_B = 'B';
 const OWNER_ZOMBIE = 'Z';
 
+// 타일 타입 (grid.js에서 사용)
+const TILE_TYPE_NORMAL = 'normal';
+
 // 랜덤 박스 타입
 const BOX_TYPE_MEDICINE = 'medicine'; // 약: 보너스 땅
 const BOX_TYPE_BLOOD    = 'blood';    // 피: 좀비 속도 UP

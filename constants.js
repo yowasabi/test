@@ -2,11 +2,11 @@
 // constants.js — 변하지 않는 숫자/설정값 모음
 // =============================================
 
-const TILE_SIZE = 18;
-const COLS = 50;
-const ROWS = 50;
-const CANVAS_W = COLS * TILE_SIZE;  // 900
-const CANVAS_H = ROWS * TILE_SIZE;  // 900
+const TILE_SIZE = 14; // 맵이 커짐에 따라 화면을 맞추기 위해 타일 크기 소폭 축소
+const COLS = 65;      // 맵 크기 확장 (기존 50 -> 65)
+const ROWS = 65;      // 맵 크기 확장 (기존 50 -> 65)
+const CANVAS_W = COLS * TILE_SIZE;  
+const CANVAS_H = ROWS * TILE_SIZE;  
 
 // 게임 시간 (초)
 const GAME_TOTAL_TIME = 120;
@@ -22,15 +22,15 @@ const BOOST_MULTIPLIER = 2.0;
 const BOOST_DURATION = 150;      // 에너지드링크 5초 (30fps * 5)
 const STEEL_TAIL_DURATION = 150; // 강철꼬리 5초
 
-// 좀비
+// 좀비 설정
 const ZOMBIE_COUNT = 6;
-const ZOMBIE_SPEED_NORMAL = 5.5;   // 플레이어보다 살짝 느림
-const ZOMBIE_SPEED_BOOSTED = 11;   // 피 효과 시
+const ZOMBIE_SPEED_NORMAL = 4.8;   // 플레이어보다 확실하게 느리도록 수정 (기존 5.5 -> 4.8)
+const ZOMBIE_SPEED_BOOSTED = 11;   // 피 효과 시 폭주 속도
 const ZOMBIE_BLOOD_DURATION = 150; // 피 효과 5초
 const ZOMBIE_RANDOM_CHANCE = 0.03;
 
 // 랜덤 박스
-const BOX_COUNT_EACH = 3; // 타입별 박스 수 (총 9개)
+const BOX_COUNT_EACH = 4; // 맵이 커진 만큼 박스 수 소폭 증가
 const BOMB_RADIUS = 3;
 
 // 타일 소유자 상수
@@ -41,14 +41,14 @@ const OWNER_B = 'B';
 const OWNER_ZOMBIE = 'Z';
 
 // 랜덤 박스 타입
-const BOX_TYPE_MEDICINE = 'medicine'; // 약: 보너스 땅
-const BOX_TYPE_BLOOD    = 'blood';    // 피: 좀비 속도 UP
-const BOX_TYPE_ENERGY   = 'energy';   // 에너지드링크: 속도 2배 + 강철꼬리
+const BOX_TYPE_MEDICINE = 'medicine'; 
+const BOX_TYPE_BLOOD    = 'blood';    
+const BOX_TYPE_ENERGY   = 'energy';   
 
 // 게임 페이즈
 const PHASE_LOBBY    = 'lobby';
 const PHASE_COOP     = 'coop';
-const PHASE_SOLO     = 'solo';     // 한 명 사망 후 20초 제한
+const PHASE_SOLO     = 'solo';     
 const PHASE_BETRAYAL = 'betrayal';
 const PHASE_END      = 'end';
 

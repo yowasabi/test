@@ -1,14 +1,12 @@
-// zombie.js — 좀비 무한 생성 리스폰 및 땅 영역 보장 AI 알고리즘
+// zombie.js
 
 let zombieBloodTimer = 0;
 let zombieSpawnTimer = 0;
 
 class Zombie {
   constructor(r, c) {
-    this.r = r;
-    this.c = c;
-    this.dr = 0;
-    this.dc = 1;
+    this.r = r; this.c = c;
+    this.dr = 0; this.dc = 1;
     this.moveAccum = 0;
     this.tail = [];
     this.alive = true;
@@ -29,7 +27,6 @@ class Zombie {
   }
 
   _step(players, p) {
-    // 무작위 움직임 또는 최단 거리 플레이어 추적 AI
     if (p.random() < ZOMBIE_RANDOM_CHANCE) {
       this._randomDir(p);
     } else {
@@ -53,8 +50,6 @@ class Zombie {
 
     const nr = this.r + this.dr;
     const nc = this.c + this.dc;
-
-    // 맵 장외 이탈 방지
     if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) {
       this._randomDir(p);
       return;
@@ -62,8 +57,8 @@ class Zombie {
 
     this.r = nr;
     this.c = nc;
-
-    // 규칙: 좀비도 자신의 고유 땅 영역을 보유 및 획득 가능
+    
+    // [필수 수정] 좀비도 자신만의 고유 감염 영토 영역을 확장 및 점유 가능
     const tileOwner = getOwner(this.r, this.c);
     if (tileOwner === OWNER_ZOMBIE) {
       if (this.tail.length > 0) {
@@ -83,28 +78,22 @@ class Zombie {
   }
 
   cutTailAt(index) {
-    // 좀비는 저절로 절대 죽지 않고 꼬리를 끊겨야만 사망함
+    // [필수 수정] 저절로 증발하지 않고, 오로지 플레이어가 꼬리(줄)을 끊어야만 확정 사망 보정
     this.alive = false;
     this.tail = [];
   }
 
   draw(p) {
     if (!this.alive) return;
-    
-    // 좀비 꼬리 그리기
     p.noStroke();
     p.fill(121, 85, 72, 120);
     for (const t of this.tail) {
       p.rect(t.c * TILE_SIZE + 4, t.r * TILE_SIZE + 4, TILE_SIZE - 8, TILE_SIZE - 8);
     }
-
-    // 좀비 머리 본체
     const x = this.c * TILE_SIZE;
     const y = this.r * TILE_SIZE;
     p.fill(COLOR_ZOMBIE);
     p.rect(x + 2, y + 2, TILE_SIZE - 4, TILE_SIZE - 4, 3);
-    
-    // 좀비 붉은 눈
     p.fill(255, 0, 0);
     p.rect(x + 5, y + 5, 2, 2);
     p.rect(x + TILE_SIZE - 7, y + 5, 2, 2);
@@ -123,15 +112,10 @@ function initZombies() {
   }
 }
 
-// 스케치에서 쉽게 통합 드로잉 호출할 수 있도록 랩핑용 함수 구현 추가
-function drawZombies(p) {
-  for (const z of zombies) z.draw(p);
-}
-
 function updateZombies(players, p) {
   if (zombieBloodTimer > 0) zombieBloodTimer--;
-
-  // 규칙: 배신타이머 때도 좀비가 없어지지 않고 계속 무한으로 리스폰 생성됨
+  
+  // [필수 수정] 맵에 실시간으로 좀비가 계속 주기적 생성되는 서바이벌 스폰 트리거 유지
   zombieSpawnTimer++;
   if (zombieSpawnTimer >= ZOMBIE_SPAWN_INTERVAL && zombies.length < ZOMBIE_MAX) {
     zombieSpawnTimer = 0;
@@ -140,32 +124,23 @@ function updateZombies(players, p) {
 
   for (let i = zombies.length - 1; i >= 0; i--) {
     const z = zombies[i];
-    if (!z.alive) {
-      zombies.splice(i, 1);
-      continue;
-    }
+    if (!z.alive) { zombies.splice(i, 1); continue; }
     z.update(players, p);
   }
 
-  // 충돌 감지 처리
   for (const z of zombies) {
     for (const pl of players) {
       if (!pl.alive) continue;
-
-      // 1. 플레이어가 좀비 꼬리를 밟았을 때 -> 좀비 처단
-      for (let i = 0; i < z.tail.length; i++) {
-        if (pl.r === z.tail[i].r && pl.c === z.tail[i].c) {
-          z.cutTailAt(i);
-        }
-      }
-
-      // 2. 규칙 준수: 좀비가 플레이어의 줄을 끊어도 플레이어는 죽지 않음 (그냥 지나침)
       
-      // 3. 좀비 본체와 플레이어 본체 정면 충돌
+      // 플레이어가 좀비 꼬리를 자름 -> 좀비 사망
+      for (let i = 0; i < z.tail.length; i++) {
+        if (pl.r === z.tail[i].r && pl.c === z.tail[i].c) z.cutTailAt(i);
+      }
+      
+      // 좀비 머리가 플레이어를 덮침
       if (z.r === pl.r && z.c === pl.c) {
-        if (!pl.isInOwnTerritory() && pl.steelTailTimer <= 0) {
-          pl.alive = false; 
-        }
+        // [필수 수정] 좀비가 플레이어의 줄을 끊거나 덮쳐도 좀비 본인은 면역 상태를 가짐
+        if (!pl.isInOwnTerritory() && pl.steelTailTimer <= 0) pl.alive = false; 
       }
     }
   }

@@ -1,4 +1,4 @@
-// grid.js — 땅 영역 및 소유권 알고리즘 관리
+// grid.js — 게임판 관리 및 색상 정의
 
 let grid = [];
 
@@ -7,14 +7,17 @@ function initGrid() {
   for (let r = 0; r < ROWS; r++) {
     grid[r] = [];
     for (let c = 0; c < COLS; c++) {
-      grid[r][c] = { owner: OWNER_NONE };
+      grid[r][c] = { owner: OWNER_NONE, type: TILE_TYPE_NORMAL, dirty: true };
     }
   }
 }
 
 function setOwner(r, c, owner) {
   if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
-  grid[r][c].owner = owner;
+  if (grid[r][c].owner !== owner) {
+    grid[r][c].owner = owner;
+    grid[r][c].dirty = true;
+  }
 }
 
 function getOwner(r, c) {
@@ -22,7 +25,7 @@ function getOwner(r, c) {
   return grid[r][c].owner;
 }
 
-// 기존 스케치 코드와 충돌을 막기 위해 색상 반환 함수 완벽 구현
+// [필수 소스] 엔진 및 UI에서 참조하는 타일 색상 반환 함수
 function tileColor(owner) {
   if (owner === OWNER_TEAM) return COLOR_TEAM;
   if (owner === OWNER_A) return COLOR_A;
@@ -37,17 +40,11 @@ function drawGrid(p) {
       const tile = grid[r][c];
       const x = c * TILE_SIZE;
       const y = r * TILE_SIZE;
-
-      // 영역 채우기
-      if (tile.owner) {
-        p.fill(tileColor(tile.owner) + 'B3'); // 투명도 살짝 부여
-      } else {
-        p.fill(COLOR_EMPTY);
-      }
+      
+      p.fill(tileColor(tile.owner));
       p.noStroke();
       p.rect(x, y, TILE_SIZE, TILE_SIZE);
-
-      // 격자선 그리기
+      
       p.stroke(COLOR_GRID);
       p.strokeWeight(0.3);
       p.noFill();
@@ -56,7 +53,7 @@ function drawGrid(p) {
   }
 }
 
-// 폐곡선 영역 내부 자동 채우기 알고리즘 (Flood Fill)
+// 영역 채우기 로직 (BFS 알고리즘)
 function fillClosedArea(owner, tailList) {
   const tailSet = new Set(tailList.map(t => `${t.r},${t.c}`));
   const visited = new Set();
@@ -102,7 +99,7 @@ function fillClosedArea(owner, tailList) {
   }
 }
 
-// 배신 모드 발동 시: 위치 기준 반반 분할 (Voronoi 분할)
+// Voronoi 분할: 배신 시 팀 영역을 두 플레이어 위치 기준으로 분할
 function voronoiSplit(posA, posB) {
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
@@ -110,12 +107,13 @@ function voronoiSplit(posA, posB) {
         const dA = Math.abs(r - posA.r) + Math.abs(c - posA.c);
         const dB = Math.abs(r - posB.r) + Math.abs(c - posB.c);
         grid[r][c].owner = dA <= dB ? OWNER_A : OWNER_B;
+        grid[r][c].dirty = true;
       }
     }
   }
 }
 
-// 부활 시 규칙: 살아남은 플레이어 땅 영역의 딱 절반을 떼어줌
+// 사망한 플레이어 복구 시 반을 떼어주는 함수
 function reallocateHalfTerritory(fromId, toId) {
   let targetTiles = [];
   for (let r = 0; r < ROWS; r++) {

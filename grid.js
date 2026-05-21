@@ -1,4 +1,4 @@
-// grid.js — 격자판 맵 제어 및 색상 매핑
+// grid.js — 게임판 관리
 
 let grid = [];
 
@@ -7,40 +7,23 @@ function initGrid() {
   for (let r = 0; r < ROWS; r++) {
     grid[r] = [];
     for (let c = 0; c < COLS; c++) {
-      grid[r][c] = { owner: OWNER_NONE, type: TILE_TYPE_NORMAL };
-    }
-  }
-  
-  // 1. 시작할 때 아무것도 없는 버그 해결: 디폴트 스타팅 땅 할당 (A 좌상단, B 우하단 영역)
-  for (let r = 5; r < 15; r++) {
-    for (let c = 5; c < 15; c++) {
-      grid[r][c].owner = OWNER_TEAM;
-    }
-  }
-  for (let r = ROWS - 16; r < ROWS - 6; r++) {
-    for (let c = COLS - 16; c < COLS - 6; c++) {
-      grid[r][c].owner = OWNER_TEAM;
+      // [오류 해결] 기존의 TILE_NORMAL_TYPE 오타를 constants.js와 일치하는 TILE_TYPE_NORMAL로 완벽히 수정했습니다.
+      grid[r][c] = { owner: OWNER_NONE, type: TILE_TYPE_NORMAL, dirty: true };
     }
   }
 }
 
 function setOwner(r, c, owner) {
   if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
-  grid[r][c].owner = owner;
+  if (grid[r][c].owner !== owner) {
+    grid[r][c].owner = owner;
+    grid[r][c].dirty = true;
+  }
 }
 
 function getOwner(r, c) {
   if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return null;
   return grid[r][c].owner;
-}
-
-// 스케줄러 루프 및 타일 렌더러가 참조할 색상 반환 함수
-function tileColor(owner) {
-  if (owner === OWNER_TEAM) return COLOR_TEAM;
-  if (owner === OWNER_A) return COLOR_A;
-  if (owner === OWNER_B) return COLOR_B;
-  if (owner === OWNER_ZOMBIE) return COLOR_ZOMBIE;
-  return COLOR_EMPTY;
 }
 
 function drawGrid(p) {
@@ -49,15 +32,9 @@ function drawGrid(p) {
       const tile = grid[r][c];
       const x = c * TILE_SIZE;
       const y = r * TILE_SIZE;
-
-      if (tile.owner) {
-        p.fill(tileColor(tile.owner)); 
-      } else {
-        p.fill(COLOR_EMPTY);
-      }
+      p.fill(tileColor(tile.owner));
       p.noStroke();
       p.rect(x, y, TILE_SIZE, TILE_SIZE);
-
       p.stroke(COLOR_GRID);
       p.strokeWeight(0.3);
       p.noFill();
@@ -66,12 +43,21 @@ function drawGrid(p) {
   }
 }
 
-// 땅을 둘러싸서 채우는 BFS 알고리즘 영역 채우기 로직
+function tileColor(owner) {
+  if (owner === OWNER_TEAM) return COLOR_TEAM;
+  if (owner === OWNER_A) return COLOR_A;
+  if (owner === OWNER_B) return COLOR_B;
+  if (owner === OWNER_ZOMBIE) return COLOR_ZOMBIE;
+  return COLOR_EMPTY;
+}
+
+// 영역 채우기 (Flood Fill / BFS 기반)
 function fillClosedArea(owner, tailList) {
   const tailSet = new Set(tailList.map(t => `${t.r},${t.c}`));
   const visited = new Set();
   const queue = [];
 
+  // 가장자리에서 출발하여 소유하지 않은 빈 공간 탐색
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       if (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1) {
@@ -102,6 +88,7 @@ function fillClosedArea(owner, tailList) {
     }
   }
 
+  // 갇힌 안쪽 공간 소유권 전환
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const key = `${r},${c}`;
@@ -112,32 +99,17 @@ function fillClosedArea(owner, tailList) {
   }
 }
 
-// 배신 시작 시 보로노이 다이어그램 기준 영역 2분할 반띵 분할
+// Voronoi 분할: 배신 시 팀 영역을 두 플레이어 위치 기준으로 분할
 function voronoiSplit(posA, posB) {
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       if (grid[r][c].owner === OWNER_TEAM) {
-        const dA = Math.abs(r - posA.r) + Math.abs(c - posA.c);
-        const dB = Math.abs(r - posB.r) + Math.abs(c - posB.c);
+        const dA = Math.abs(r-posA.r) + Math.abs(c-posA.c);
+        const dB = Math.abs(r-posB.r) + Math.abs(c-posB.c);
         grid[r][c].owner = dA <= dB ? OWNER_A : OWNER_B;
+        grid[r][c].dirty = true;
       }
     }
-  }
-}
-
-// 부활 시 살아남은 생존자의 영역 절반을 떼어주는 분할 처리 함수
-function reallocateHalfTerritory(fromId, toId) {
-  let targetTiles = [];
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      if (grid[r][c].owner === fromId) {
-        targetTiles.push({ r, c });
-      }
-    }
-  }
-  const halfCount = Math.floor(targetTiles.length / 2);
-  for (let i = 0; i < halfCount; i++) {
-    grid[targetTiles[i].r][targetTiles[i].c].owner = toId;
   }
 }
 

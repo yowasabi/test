@@ -1,5 +1,3 @@
-// grid.js — 게임판 관리
-
 let grid = [];
 
 function initGrid() {
@@ -7,7 +5,6 @@ function initGrid() {
   for (let r = 0; r < ROWS; r++) {
     grid[r] = [];
     for (let c = 0; c < COLS; c++) {
-      // [오류 해결] 기존의 TILE_NORMAL_TYPE 오타를 constants.js와 일치하는 TILE_TYPE_NORMAL로 완벽히 수정했습니다.
       grid[r][c] = { owner: OWNER_NONE, type: TILE_TYPE_NORMAL, dirty: true };
     }
   }
@@ -39,67 +36,67 @@ function drawGrid(p) {
       p.strokeWeight(0.3);
       p.noFill();
       p.rect(x, y, TILE_SIZE, TILE_SIZE);
+      tile.dirty = false;
     }
   }
 }
 
 function tileColor(owner) {
-  if (owner === OWNER_TEAM) return COLOR_TEAM;
-  if (owner === OWNER_A) return COLOR_A;
-  if (owner === OWNER_B) return COLOR_B;
-  if (owner === OWNER_ZOMBIE) return COLOR_ZOMBIE;
-  return COLOR_EMPTY;
+  switch (owner) {
+    case OWNER_TEAM:   return COLOR_TEAM;
+    case OWNER_A:      return COLOR_A;
+    case OWNER_B:      return COLOR_B;
+    case OWNER_ZOMBIE: return COLOR_ZOMBIE;
+    default:           return COLOR_EMPTY;
+  }
 }
 
-// 영역 채우기 (Flood Fill / BFS 기반)
-function fillClosedArea(owner, tailList) {
-  const tailSet = new Set(tailList.map(t => `${t.r},${t.c}`));
+// 꼬리로 둘러싸인 내부 영역을 내 땅으로 채우는 BFS 알고리즘
+function floodFillEnclosed(tailSet, owner, p) {
   const visited = new Set();
   const queue = [];
 
-  // 가장자리에서 출발하여 소유하지 않은 빈 공간 탐색
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      if (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1) {
+      if (r === 0 || r === ROWS-1 || c === 0 || c === COLS-1) {
         const key = `${r},${c}`;
-        if (grid[r][c].owner !== owner && !tailSet.has(key)) {
+        if (!tailSet.has(key) && grid[r][c].owner === OWNER_NONE && !visited.has(key)) {
           visited.add(key);
-          queue.push({ r, c });
+          queue.push([r, c]);
         }
       }
     }
   }
 
-  const dr = [-1, 1, 0, 0];
-  const dc = [0, 0, -1, 1];
-
+  const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
   while (queue.length > 0) {
-    const curr = queue.shift();
-    for (let i = 0; i < 4; i++) {
-      const nr = curr.r + dr[i];
-      const nc = curr.c + dc[i];
-      if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
-        const nKey = `${nr},${nc}`;
-        if (!visited.has(nKey) && grid[nr][nc].owner !== owner && !tailSet.has(nKey)) {
-          visited.add(nKey);
-          queue.push({ r: nr, c: nc });
-        }
-      }
+    const [r, c] = queue.shift();
+    for (const [dr, dc] of dirs) {
+      const nr = r+dr, nc = c+dc;
+      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+      const key = `${nr},${nc}`;
+      if (visited.has(key) || tailSet.has(key)) continue;
+      if (grid[nr][nc].owner !== OWNER_NONE) continue;
+      visited.add(key);
+      queue.push([nr, nc]);
     }
   }
 
-  // 갇힌 안쪽 공간 소유권 전환
+  for (const key of tailSet) {
+    const [r, c] = key.split(',').map(Number);
+    setOwner(r, c, owner);
+  }
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const key = `${r},${c}`;
-      if (grid[r][c].owner !== owner && !visited.has(key) && !tailSet.has(key)) {
+      if (grid[r][c].owner === OWNER_NONE && !visited.has(key) && !tailSet.has(key)) {
         setOwner(r, c, owner);
       }
     }
   }
 }
 
-// Voronoi 분할: 배신 시 팀 영역을 두 플레이어 위치 기준으로 분할
+// 배신 시 팀 영역 분할 알고리즘 (보로노이 다이어그램)
 function voronoiSplit(posA, posB) {
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
@@ -126,4 +123,15 @@ function countTiles() {
     }
   }
   return counts;
+}
+
+function applyAreaBomb(centerR, centerC, owner) {
+  for (let r = centerR-BOMB_RADIUS; r <= centerR+BOMB_RADIUS; r++) {
+    for (let c = centerC-BOMB_RADIUS; c <= centerC+BOMB_RADIUS; c++) {
+      if (r < 0 || r >= ROWS || c < 0 || c >= COLS) continue;
+      if (Math.abs(r-centerR)+Math.abs(c-centerC) <= BOMB_RADIUS) {
+        if (grid[r][c].owner === OWNER_NONE) setOwner(r, c, owner);
+      }
+    }
+  }
 }
